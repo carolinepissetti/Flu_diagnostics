@@ -1,0 +1,139 @@
+
+---
+
+title: "Swine influenza diagnostic validation"
+
+author: "Eduardo de Freitas Costa"
+
+date: '`r format(Sys.Date(), "%Y-%m-%d")`'
+
+output:
+
+    html_document:
+
+      code_folding: hide
+
+      toc: yes
+
+      toc_depth: 6
+
+      toc_float: true
+       
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, ft.keepnext = F)
+```
+ 
+Load library 
+
+```{r, include=F}
+
+# Package names
+packages <- c("ggplot2", "here", "tidyverse","runjags","ggplot2","ggridges","readxl")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+
+```
+
+Read data
+```{r, include=F}
+# Read in the shapefile
+database <- read_excel(here("Database","Database.xlsx"))
+
+
+#Data has one col for each test and one for population, see the exemple:
+
+data<- data.frame(Population = database$Population,
+                  
+                  WipeResult = database$WipeResult,
+                  
+                  SwabResult = database$SwabResult)
+
+```
+
+# Run the model
+```{r, include=F}
+# Acquire data and priors
+
+ # template_huiwalter(data, outfile=here("Database","huiwalter_model.txt"), covariance=FALSE,
+ #                    se_priors = "dbeta(2,1)",
+ #                    sp_priors = "dbeta(2,1)")
+
+
+
+## Run the model
+
+results <- run.jags(here("Database","huiwalter_model.txt"),
+                    burnin = 15000,
+                    sample = 30000)
+```
+
+# Results
+## Summary statistics
+```{r,fig.width=15, fig.height=8,out.width = '50%'}
+results
+```
+
+
+## Diagnostic plots
+```{r,out.width = '50%'}
+plot(results)
+```
+
+## Density plots
+```{r, fig.width=7, fig.height=7,out.width = '60%',fig.align='center'}
+dist_res<-data.frame(combine.mcmc(results))
+
+dist_res%>%
+  gather(key="measu", value="Perc")%>%
+  filter(measu %in%c("se.1.","se.2.","sp.1.","sp.2."))%>%
+  mutate(carac=ifelse(measu=="se.1." | measu=="se.2.","Sensitivity","Specificity"))%>%
+  ggplot(aes(x=Perc,y=measu))+
+  theme_minimal()+
+  geom_density_ridges(fill = "#00AFBB", rel_min_height = 0.01,alpha=0.5)+
+  ylab(" ")+
+  xlab(" ")+
+  scale_x_continuous(labels = scales::percent,limits = c(0.5,1.001))+
+  scale_y_discrete(
+    labels = c(
+      "se.1." = "Se \n whipe ",
+      "se.2." = "Se \n swab",
+      "sp.1." = "Sp \n whipe",
+      "sp.2." = "Sp \n swab"
+    )
+  )
+  
+```
+
+# Predictive values
+## PPV
+```{r, fig.width=7, fig.height=7,out.width = '60%',fig.align='center'}
+prev<-seq(0,1,0.001)
+
+#PPV
+PPV1<-(prev*mean(dist_res$se.1.))/(prev*mean(dist_res$se.1.)+((1-prev)*(1-mean(dist_res$sp.1.))))
+PPV2<-(prev*mean(dist_res$se.2.))/(prev*mean(dist_res$se.2.)+((1-prev)*(1-mean(dist_res$sp.2.))))
+
+plot(prev,PPV1,type = "l",col="red")
+lines(prev,PPV2,col="blue")
+```
+
+## PNV
+```{r,fig.width=7, fig.height=7,out.width = '60%',fig.align='center'}
+
+#PNV
+PNV1<-((1-prev)*mean(dist_res$sp.1.))/((1-prev)*mean(dist_res$sp.1.)+((prev)*(1-mean(dist_res$se.1.))))
+PNV2<-((1-prev)*mean(dist_res$sp.2.))/((1-prev)*mean(dist_res$sp.2.)+((prev)*(1-mean(dist_res$se.2.))))
+
+plot(prev,PNV1,type = "l",col="red")
+lines(prev,PNV2,type = "l",col="blue")
+```
+
