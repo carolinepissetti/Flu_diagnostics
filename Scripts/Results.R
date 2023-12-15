@@ -23,23 +23,51 @@ dist_res<-data.frame(combine.mcmc(results))
 dist_res%>%
   gather(key="measu", value="Perc")%>%
   filter(measu %in%c("se.1.","se.2.","sp.1.","sp.2."))%>%
-  mutate(carac=ifelse(measu=="se.1." | measu=="se.2.","Sensitivity","Specificity"))%>%
-  ggplot(aes(x=Perc,y=measu))+
+  mutate(carac=ifelse(measu=="se.1." | measu=="se.2.","Sensitivity","Specificity"),
+         test=ifelse(grepl(".1",measu),"Nasal \n Wipe","Nasal \n Swab"))%>%
+  ggplot()+  
   theme_minimal()+
-  geom_density_ridges(fill = "#00AFBB", rel_min_height = 0.01,alpha=0.5)+
+  theme(legend.title = element_blank(),
+        legend.position="right") +
+  geom_density_ridges(aes(x=Perc,y=test, group=interaction(test,carac), fill = carac),
+                      rel_min_height = 0.01,alpha=0.5, color="white",scale=1.001)+
   ylab(" ")+
   xlab(" ")+
-  scale_x_continuous(labels = scales::percent,limits = c(0.5,1.001))+
+  scale_x_continuous(labels = scales::percent,limits = c(0.6,1.001))+
   scale_y_discrete(expand = c(0,1,1, 1),
-    labels = c(
-      "se.1." = "Se \n Wipe ",
-      "se.2." = "Se \n Swab",
-      "sp.1." = "Sp \n Wipe",
-      "sp.2." = "Sp \n Swab"
-    )
+                   labels = c(
+                     "se.1." = "Se \n NW",
+                     "se.2." = "Se \n NS",
+                     "sp.1." = "Sp \n NW",
+                     "sp.2." = "Sp \n NS"
+                   )
   )+
-  annotate(geom = "table",x = 0.5,y = 5.5, 
+  annotate(geom = "table",x = 0.6,y = 3.5, 
            label = list(cbind(stable))) 
+
+## separate ##
+
+#dist_res%>%
+#gather(key="measu", value="Perc")%>%
+#  filter(measu %in%c("se.1.","se.2.","sp.1.","sp.2."))%>%
+#  mutate(carac=ifelse(measu=="se.1." | measu=="se.2.","Sensitivity","Specificity"))%>%
+#  ggplot(aes(x=Perc,y=measu,fill = carac,))+
+#  theme(legend.position="none") +
+#  geom_density_ridges(rel_min_height = 0.01,alpha=0.5, color="white")+
+#  ylab(" ")+
+#  xlab(" ")+
+#  scale_x_continuous(labels = scales::percent,limits = c(0.5,1.001))+
+#  scale_y_discrete(expand = c(0,1,1, 1),
+#                   labels = c(
+#                     "se.1." = "Se \n NW",
+#                     "se.2." = "Se \n NS",
+#                     "sp.1." = "Sp \n NW",
+#                     "sp.2." = "Sp \n NS"
+#                   )
+#  )+
+#  annotate(geom = "table",x = 0.5,y = 5.5, 
+#           label = list(cbind(stable)))
+
 
 ##Predictive values
 
